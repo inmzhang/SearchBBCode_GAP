@@ -91,7 +91,7 @@ QUIT;
     elapsed_time = time.monotonic() - start_time
     print(f"Elapsed time: {elapsed_time:.2f} seconds")
 
-    if args.format_csv:
+    if args.format_csv and out_csv_filepath.exists():
         with open(out_csv_filepath, "r", newline="") as f:
             csv.reader(f)
             header = next(f).strip().split(",")
@@ -112,7 +112,8 @@ QUIT;
 
 
 def _format_coefficients(A: List[List[int]]) -> str:
-    return "+".join([f'{['x', 'y'][i]}^{p}' for i, p in A])
+    poly = ['x', 'y']
+    return "+".join([f'{poly[i]}^{p}' for i, p in A])
 
 
 if __name__ == "__main__":

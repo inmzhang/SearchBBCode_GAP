@@ -195,7 +195,9 @@ SearchBBCodes := function(l, m, resultsFilepath, encodingRateLowerBound, distanc
     
     Print("Number of code satisfying all conditions: ", Length(satisfiedCodes), "\n");
 
-    PrintCSV(resultsFilepath, satisfiedCodes);
+    if Length(satisfiedCodes) > 0 then
+        PrintCSV(resultsFilepath, satisfiedCodes);
+    fi;
     return codes;
 end;
 

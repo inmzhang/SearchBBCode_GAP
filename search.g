@@ -35,7 +35,7 @@ ConstructGroup := function(l, m)
     M := DirectProduct(cl, cm);
     gx := M.1;
     gy := GeneratorsOfGroup(M)[Length(GeneratorsOfGroup(cl)) + 1];
-    return [Size(M), gx, gy];
+    return [gx, gy];
 end;
 
 
@@ -109,15 +109,25 @@ SplitListIntoChunks := function(list, chunk_size)
     return result;
 end;
 
-CalculateFor := function(ijList, combs, allMats, allPotentialGenerators, sizeM, n, encodingRateLowerBound, numInformationSets, distanceLowerBound, targetK)
-    local codes, ij, i, j, A, B, encodingRate, Hs, k, d;
+
+FilterToricLayout := function(ijList, allPotentialGenerators, lm)
+    local filteredList, ij;
+    filteredList := [];
+    for ij in ijList do
+        if IsToricLayout(allPotentialGenerators[ij[1]], allPotentialGenerators[ij[2]], lm) then
+            Add(filteredList, ij);
+        fi;
+    od;
+    return filteredList;
+end;
+
+
+FilterEncodingRate := function(ijList, allMats, n, encodingRateLowerBound, targetK)
+    local codes, ij, i, j, A, B, encodingRate, k;
     codes := [];
     for ij in ijList do
         i := ij[1];
         j := ij[2];
-        if not IsToricLayout(allPotentialGenerators[i], allPotentialGenerators[j], sizeM) then
-            continue;
-        fi;
         A := allMats[i];
         B := allMats[j];
         k := 2 * (Length(A) - Rank(Concatenation(A, B)));
@@ -128,28 +138,30 @@ CalculateFor := function(ijList, combs, allMats, allPotentialGenerators, sizeM, 
         if encodingRate < encodingRateLowerBound then
             continue;
         fi;
-        Hs := ConstructParityCheckMatrix(A, B);
-        d := DistRandCSS(Hs[1], Hs[2], numInformationSets, distanceLowerBound, 2: field:=F);
-        if d > 0 then
-            Add(codes, rec(parameter := [n, k, d], As:=combs[i], Bs:=combs[j], encodingRate := encodingRate));
-        fi;
+        Add(codes, rec(i:=i, j:=j, n:=n, k:=k, encodingRate := encodingRate));
     od;
     return codes;
 end;
 
 
+ComputeDistance := function(code, allMats, numInformationSets, distanceLowerBound)
+    local Hs;
+    Hs := ConstructParityCheckMatrix(allMats[code.i], allMats[code.j]);
+    return DistRandCSS(Hs[1], Hs[2], numInformationSets, distanceLowerBound, 2: field:=F);
+end;
+
+
 # Given the parameter l and m, search the bivariate bicyclic code
 SearchBBCodes := function(l, m, resultsFilepath, encodingRateLowerBound, distanceLowerBound, numInformationSets, chunkSize, targetK)
-    local x, y, group, gx, gy, sizeM, ps, pool, n, codes, allMats, combs, tasks, allPotentialGenerators;
+    local x, y, group, gx, gy, sizeM, ps, pool, n, codes, allMats, combs, tasks, allPotentialGenerators, satisfiedCodes, distances, d, code, i;
     codes := [];
     x := CyclicMat(l, m, false);
     y := CyclicMat(l, m, true);
     n := 2 * l * m;
     # Cyclic group associated with the monomials
     group := ConstructGroup(l, m);
-    sizeM := group[1];
-    gx := group[2];
-    gy := group[3];
+    gx := group[1];
+    gy := group[2];
 
     ps := GetSearchPool(l, m, gx, gy, x, y);
     combs := ps[1];
@@ -158,22 +170,45 @@ SearchBBCodes := function(l, m, resultsFilepath, encodingRateLowerBound, distanc
     pool := ps[4];
     Print("Search pool size: ", Length(pool), "\n");
 
-    # CalculateFor(pool, combs, allMats, allPotentialGenerators,  sizeM, n, Rat(encodingRateLowerBound), numInformationSets, distanceLowerBound, targetK);
-    tasks := List(SplitListIntoChunks(pool, chunkSize), chunk -> RunTask(CalculateFor, chunk, combs, allMats, allPotentialGenerators,  sizeM, n, Rat(encodingRateLowerBound), numInformationSets, distanceLowerBound, targetK));
+    # Filter toric layout codes
+    tasks := List(SplitListIntoChunks(pool, chunkSize), chunk -> RunTask(FilterToricLayout, chunk, allPotentialGenerators, l * m));
     codes := Concatenation(List(tasks, task -> TaskResult(task)));
-    PrintCSV(resultsFilepath, codes);
+    Print("Number of codes with toric layout: ", Length(codes), "\n");
+
+    # Filter encoding rate
+    tasks := List(SplitListIntoChunks(codes, Int(chunkSize / 2)), code -> RunTask(FilterEncodingRate, code, allMats, n, Rat(encodingRateLowerBound), targetK));
+    codes := Concatenation(List(tasks, task -> TaskResult(task)));
+    Print("Number of code satisfying encoding rate conditions: ", Length(codes), "\n");
+
+    # Compute the distance
+    tasks := List(codes, code -> RunTask(ComputeDistance, code, allMats, numInformationSets, distanceLowerBound));
+    distances := List(tasks, task -> TaskResult(task));
+
+    satisfiedCodes := [];
+    for i in [1..Length(codes)] do
+        code := codes[i];
+        d := distances[i];
+        if d > 0 then
+            Add(satisfiedCodes, rec(parameter:=[code.n, code.k, d], encodingRate:=code.encodingRate, As:=combs[code.i], Bs:=combs[code.j]));
+        fi;
+    od;
+    
+    Print("Number of code satisfying all conditions: ", Length(satisfiedCodes), "\n");
+
+    PrintCSV(resultsFilepath, satisfiedCodes);
     return codes;
 end;
 
 # l := 12;
 # m := 6;
-# minDist := 10;
-# rejectEncodingRate := 1 / 25;
-# SearchBBCodes(l, m, rejectEncodingRate, minDist, 10, 1000, "results/codes.csv");
+# distanceLowerBound := 10;
+# encodingRateLowerBound := 1 / 25;
+# targetK := 0;
+# SearchBBCodes(l, m, "out/codes.csv", encodingRateLowerBound, distanceLowerBound, 10, 5000, targetK);
 
 # l := 6;
 # m := 6;
 # distanceLowerBound := 5;
 # encodingRateLowerBound := 1 / 13;
 # targetK := 0;
-# SearchBBCodes(l, m, "results/codes.csv", encodingRateLowerBound, distanceLowerBound, 10, 5000, targetK);
+# SearchBBCodes(l, m, "out/codes.csv", encodingRateLowerBound, distanceLowerBound, 10, 5000, targetK);

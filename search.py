@@ -30,7 +30,7 @@ def main():
         "-c",
         "--chunk_size",
         type=int,
-        default=5000,
+        default=1000,
         help="Chunk size for each searching subtask",
     )
     parser.add_argument(

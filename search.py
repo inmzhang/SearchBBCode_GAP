@@ -26,13 +26,13 @@ def main():
         default=10000,
         help="Number of information sets used for distance upper bound estimation",
     )
-    parser.add_argument(
-        "-c",
-        "--chunk_size",
-        type=int,
-        default=1000,
-        help="Chunk size for each searching subtask",
-    )
+    # parser.add_argument(
+    #     "-c",
+    #     "--chunk_size",
+    #     type=int,
+    #     default=1000,
+    #     help="Chunk size for each searching subtask",
+    # )
     parser.add_argument(
         "-t",
         "--target_k",
@@ -59,7 +59,7 @@ def main():
     out_dir.mkdir(exist_ok=True, parents=True)
     out_csv_filepath = (
         out_dir
-        / f"l{args.l}_m{args.m}_erlb{erlb:.2f}_dlb{args.dlb}_nis{args.nis}_chunk{args.chunk_size}_targetk{args.target_k}.csv"
+        / f"l{args.l}_m{args.m}_erlb{erlb:.2f}_dlb{args.dlb}_nis{args.nis}_targetk{args.target_k}.csv"
     )
     gap_call_scripts = f"""l := {args.l};
 m := {args.m};
@@ -67,18 +67,19 @@ resultsFilepath := "{out_csv_filepath}";
 encodingRateLowerBound := {erlb};
 distanceLowerBound := {args.dlb};
 numInformationSets := {args.nis};
-chunkSize := {args.chunk_size};
 targetK := {args.target_k};
-SearchBBCodes(l, m, resultsFilepath, encodingRateLowerBound, distanceLowerBound, numInformationSets, chunkSize, targetK);
+SearchBBCodes(l, m, resultsFilepath, encodingRateLowerBound, distanceLowerBound, numInformationSets, targetK);
 QUIT;
 """
-    # print("Running GAP with the following script:")
-    # print(gap_call_scripts)
+    print("Running GAP with the following script:")
+    print(gap_call_scripts)
     start_time = time.monotonic()
     subprocess.run(
         [
             "gap",
             "-P",
+            f"{args.p}",
+            "-G",
             f"{args.p}",
             "--quitonbreak",
             "-b",
@@ -112,8 +113,7 @@ QUIT;
 
 
 def _format_coefficients(A: List[List[int]]) -> str:
-    poly = ['x', 'y']
-    return "+".join([f'{poly[i]}^{p}' for i, p in A])
+    return "+".join([f"{['x', 'y'][i]}^{p}" for i, p in A])
 
 
 if __name__ == "__main__":

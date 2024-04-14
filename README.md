@@ -21,7 +21,7 @@ A python script `search.py` is provided for searching the codes. The script will
 ```shell
 $ python search.py --help
 
-usage: search.py [-h] -l L -m M [-o OUT_DIR] [-r ERLB] [--dlb DLB] [-n NIS] [-c CHUNK_SIZE] [-t TARGET_K] [-p P] [-f]
+usage: search.py [-h] -l L -m M [-o OUT_DIR] [-r ERLB] [--dlb DLB] [-n NIS] [-t TARGET_K] [-p P] [-f]
 
 options:
   -h, --help            show this help message and exit
@@ -31,8 +31,6 @@ options:
   -r ERLB, --erlb ERLB  Encoding rate lower bound
   --dlb DLB             Distance lower bound
   -n NIS, --nis NIS     Number of information sets used for distance upper bound estimation
-  -c CHUNK_SIZE, --chunk_size CHUNK_SIZE
-                        Chunk size for each searching subtask
   -t TARGET_K, --target_k TARGET_K
                         Target number of logical qubits for searching
   -p P                  Number of logical processors used for hpc-gap

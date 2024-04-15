@@ -94,15 +94,20 @@ QUIT;
 
     if args.format_csv and out_csv_filepath.exists():
         with open(out_csv_filepath, "r", newline="") as f:
-            csv.reader(f)
             header = next(f).strip().split(",")
+            header = ["As_repr", "Bs_repr", *header]
             rows = [row for row in csv.reader(f)]
             formatted_rows = [
                 [
                     _format_coefficients(eval(row[0])),
                     _format_coefficients(eval(row[1])),
+                    eval(row[0]),
+                    eval(row[1]),
                     row[2],
                     eval(row[3]),
+                    eval(row[4]),
+                    eval(row[5]),
+                    eval(row[6]),
                 ]
                 for row in rows
             ]

@@ -103,6 +103,43 @@ ComputeDistance := function(x, y, combs, code, numInformationSets, distanceLower
 end;
 
 
+RecomputeGeneratorsForFoundCode := function(selectedA, selectedB, gx, gy, code, sizeM)
+    local elementsA, inverseElementsA, elementsB, inverseElementsB, i, j, generator, generatorsA, generatorsB, ga, gb;
+    
+    elementsA := List(selectedA, ii -> [gx, gy][ii[1] + 1] ^ ii[2]);
+    inverseElementsA := List(elementsA, Inverse);
+    elementsB := List(selectedB, ii -> [gx, gy][ii[1] + 1] ^ ii[2]);
+    inverseElementsB := List(elementsB, Inverse);
+
+    generatorsA := [];
+    for i in [1..2] do
+        for j in [i+1..3] do
+            generator := elementsA[i] * inverseElementsA[j];
+            Add(generatorsA, [generator, Order(generator), [i-1, j-1]]);
+        od;
+    od;
+
+    generatorsB := [];
+    for i in [1..2] do
+        for j in [i+1..3] do
+            generator := elementsB[i] * inverseElementsB[j];
+            Add(generatorsB, [generator, Order(generator), [i-1, j-1]]);
+        od;
+    od;
+
+    for i in [1..Length(generatorsA)] do
+        ga := generatorsA[i];
+        for j in [1..Length(generatorsB)] do
+            gb := generatorsB[j];
+            if (ga[2] * gb[2] = sizeM) and (Size(GroupByGenerators([ga[1], gb[1]])) = sizeM) then
+                return [ga[3], gb[3]];
+            fi;
+        od;
+    od;
+    Error("Unreachable!");
+end;
+
+
 # Given the parameter l and m, search the bivariate bicyclic code
 SearchBBCodes := function(l, m, resultsFilepath, encodingRateLowerBound, distanceLowerBound, numInformationSets, targetK)
     local x_shift_mat, y_shift_mat, gs, ps, toric_layout_codes, codes_for_distance_calc, combs, tasks, allPotentialGenerators, satisfiedCodes, distances, d, code, i, ks, n, k;
@@ -138,7 +175,7 @@ SearchBBCodes := function(l, m, resultsFilepath, encodingRateLowerBound, distanc
         if d > 0 then
             code := toric_layout_codes[codes_for_distance_calc[i]];
             k := ks[codes_for_distance_calc[i]];
-            Add(satisfiedCodes, rec(parameter:=[n, k, d], encodingRate:=k/n, As:=combs[code[1]], Bs:=combs[code[2]]));
+            Add(satisfiedCodes, rec(parameter:=[n, k, d], encodingRate:=k/n, As:=combs[code[1]], Bs:=combs[code[2]], generators:=RecomputeGeneratorsForFoundCode(combs[code[1]], combs[code[2]], gs[1], gs[2], code, l * m), l:=l, m:=m));
         fi;
     od;
     Print("Number of code satisfying all conditions: ", Length(satisfiedCodes), "\n");
